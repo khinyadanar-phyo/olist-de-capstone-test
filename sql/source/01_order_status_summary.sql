@@ -9,7 +9,7 @@ order by customers desc
 limit 5;
 
 --2. How many distinct real customers (customer_unique_id) are there?
-select distinct count( distinct customer_unique_id) as unique_cus_id from customers;
+select count( distinct customer_unique_id) as unique_cus_id from customers;
 
 --3. Which payment_type is used most, and what is its total payment_value?
 select * from order_payments;
