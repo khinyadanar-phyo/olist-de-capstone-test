@@ -26,7 +26,7 @@ select avg(review_score) as over_all_score from order_reviews;
 
 -- 5.Sellers by state: which states have more than 50 sellers?
 select * from sellers;
-select seller_state,count(*)num_sellers 
+select seller_state, count(*) num_sellers 
 from sellers
 group by seller_state 
 having count(*) >50 order by num_sellers;
