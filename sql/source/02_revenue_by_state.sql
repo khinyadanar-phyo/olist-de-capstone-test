@@ -37,6 +37,8 @@ join order_items oi on p.product_id = oi.product_id
 group by ct.product_category_name_english 
 order by sold_item desc  limit 10 ;
 
+-- LEFT JOIN helps us retain products even when a translation is missing.
+
 -- Q4 What share of order items were sold by a seller in the same state as the customer?
 select * from order_items;
 select * from sellers;
@@ -99,14 +101,53 @@ join(
 where op.total_payment - oi.pf >1 
 or oi.pf -op.total_payment >1 ) --249 
 
+-- Extra 1 Find customers who have placed more than 3 orders.
+select * from customers
+
+select c.customer_id ,count (*) from orders o 
+join customers c on o.customer_id =c.customer_id 
+group by c.customer_id 
+having count(*)>3
 
 
+-- Find sellers whose total product revenue is higher than the average seller revenue.
+select * from sellers 
+select * from order_items
 
+SELECT seller_id, total_product_revenue
+FROM (
+    SELECT seller_id, SUM(price) AS total_product_revenue
+    FROM order_items
+    GROUP BY seller_id
+) AS seller_revenue
+WHERE total_product_revenue > (
+    SELECT AVG(total_product_revenue)
+    FROM (
+        SELECT seller_id, SUM(price) AS total_product_revenue
+        FROM order_items
+        GROUP BY seller_id
+    ) AS all_seller_revenue
+);
 
-
-
-
-
+-- Two exam answers 
+SELECT
+    c.customer_state,
+    COUNT(o.order_id) AS total_orders
+FROM orders o
+JOIN customers c
+    ON o.customer_id = c.customer_id
+GROUP BY c.customer_state
+ORDER BY total_orders DESC;
+-----------------------
+SELECT
+    p.product_category_name,
+    COUNT(*) AS items_sold,
+    COUNT(DISTINCT oi.seller_id) AS different_sellers
+FROM products p
+JOIN order_items oi
+    ON p.product_id = oi.product_id
+GROUP BY p.product_category_name
+ORDER BY items_sold DESC;
 
 
 
