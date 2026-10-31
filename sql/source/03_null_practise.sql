@@ -1,3 +1,4 @@
+-- Week3 
 -- q1. null audit: count nulls in product_category_name and product_weight_g.
 
 select count(*) - count(product_category_name) as null_category,
