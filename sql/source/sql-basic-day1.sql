@@ -219,10 +219,201 @@ JOIN raw.orders o
 GROUP BY c.customer_unique_id
 ORDER BY order_count DESC, c.customer_unique_id;
 
+-------------------------------------------------------------------
 
+The business team wants the average order value for each month of 2017, counting only delivered orders. Order value is the sum of price for all items in the order.
+One row per purchase month in 2017, sorted by month
+month formatted as 'YYYY-MM'
+orders: the number of delivered orders
+avg_order_value: rounded to 2 decimals
+Use at least two CTEs. Make sure orders placed late on 31 December are included. Run your query on olist_dw, then enter the values for 2017-12:
 
+with order_values as (
+    select
+        order_id,
+        sum(price) as order_value
+    from order_items
+    group by  order_id
+),
 
+delivered_orders AS (
+    select
+        o.order_id,
+        o.order_purchase_timestamp,
+        ov.order_value
+    from orders o
+    join order_values ov
+        on o.order_id = ov.order_id
+    where o.order_status = 'delivered'
+      and o.order_purchase_timestamp >= '2017-01-01'
+      and o.order_purchase_timestamp < '2018-01-01'
+)
 
+select
+    to_char(date_trunc('month', order_purchase_timestamp), 'YYYY-MM') AS month,
+    count(order_id) AS orders,
+    round(avg(order_value)::numeric, 2) AS avg_order_value
+from delivered_orders
+group by DATE_TRUNC('month', order_purchase_timestamp)
+order by DATE_TRUNC('month', order_purchase_timestamp);
 
+------
+-- window function 
+SELECT order_id, SUM(price) AS order_total
+FROM raw.order_items
+GROUP BY order_id;
 
+SELECT order_id, order_item_id, price,
+       SUM(price) OVER (PARTITION BY order_id) AS order_total
+FROM raw.order_items;
+-------------
+WITH monthly AS (
+SELECT DATE_TRUNC('month', o.order_purchase_timestamp) AS month,
+SUM(oi.price) AS revenue
+FROM raw.orders o
+JOIN raw.order_items oi ON oi.order_id = o.order_id
+GROUP BY 1
+)
+SELECT TO_CHAR(month, 'YYYY-MM') AS month,
+revenue,
+SUM(revenue) OVER (ORDER BY month
+ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total,
+ROUND(SUM(revenue) OVER (ORDER BY month
+ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS moving_sum_2,
+SUM(revenue) OVER (ORDER BY month
+ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) AS this_and_next ,
+SUM(revenue) OVER (ORDER BY month
+ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS remaining_total
+FROM monthly
+ORDER BY month;
+--------------
+WITH product_sales AS (
+SELECT p.product_category_name AS category,
+oi.product_id,
+COUNT(*) AS items_sold
+FROM raw.order_items oi
+JOIN raw.products p USING (product_id)
+WHERE p.product_category_name IS NOT NULL
+GROUP BY 1, 2
+),
+ranked AS (
+SELECT *,
+RANK() OVER (PARTITION BY category ORDER BY items_sold DESC) AS rnk,
+DENSE_RANK() OVER (PARTITION BY category ORDER BY items_sold DESC) AS dense_rnk,
+ROW_NUMBER() OVER (PARTITION BY category ORDER BY items_sold DESC, product_id) AS rn
+FROM product_sales
+)
+SELECT *
+FROM ranked
+ORDER BY category;
+
+------------- Lab  Question -------------
+-- For each seller state, find the 3 sellers who earned the most revenue.
+select * from sellers 
+select * from order_items -- price + freight value 
+-- Rank inside each state, highest revenue first, with RANK()
+-- Ties share a rank, so a state can show more than 3 sellers
+
+with total_revenue as (select s.seller_id ,s.seller_state,sum(oi.price +oi.freight_value )  as revenue
+from sellers s
+join order_items oi on s.seller_id =oi.seller_id 
+group by s.seller_id , s.seller_state order by revenue )
+
+select seller_id, seller_state ,revenue,rank() over(partition by seller_state order by revenue desc)
+
+from total_revenue 
+--------------------
+-- For every customer, show the date of their first order and how many orders they placed in total.
+WITH customer_orders AS (
+    SELECT
+        c.customer_unique_id,
+        o.order_id,
+        o.order_purchase_timestamp::DATE AS order_date,
+        COUNT(*) OVER (
+            PARTITION BY c.customer_unique_id
+        ) AS total_orders,
+        ROW_NUMBER() OVER (
+            PARTITION BY c.customer_unique_id
+            ORDER BY o.order_purchase_timestamp, o.order_id
+        ) AS rn
+    FROM raw.customers c
+    JOIN raw.orders o
+        ON c.customer_id = o.customer_id
+)
+
+SELECT
+    customer_unique_id,
+    order_id,
+    order_date AS first_order_date,
+    total_orders, rn
+FROM customer_orders
+ WHERE rn = 1;
+-----------------------
+-- For each seller, show how their revenue adds up over time, order by order.
+WITH seller_order_revenue AS (
+    SELECT
+        oi.seller_id,
+        o.order_id,
+        o.order_purchase_timestamp AS order_time,
+        SUM(oi.price + oi.freight_value) AS order_revenue
+    FROM raw.order_items oi
+    JOIN raw.orders o
+        ON oi.order_id = o.order_id
+    GROUP BY
+        oi.seller_id,
+        o.order_id,
+        o.order_purchase_timestamp
+)
+SELECT
+    seller_id,
+    order_id,
+    order_time,
+    order_revenue,
+    SUM(order_revenue) OVER (
+        PARTITION BY seller_id
+        ORDER BY order_time, order_id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total
+FROM seller_order_revenue
+ORDER BY seller_id, order_time, order_id;
+------------
+-- What percentage of all money paid came from each payment type?
+select * from order_payments op  -- payment_type, payment_value 
+SELECT
+    payment_type,
+    SUM(payment_value) AS total_paid,
+    ROUND(
+        SUM(payment_value) * 100.0 /
+        SUM(SUM(payment_value)) OVER (),
+        2
+    ) AS percentage
+FROM raw.order_payments
+GROUP BY payment_type
+ORDER BY percentage DESC;
+------------
+-- Find the order items whose price is higher than the average price in their product category.
+select * from products
+select * from order_items
+
+WITH item_category_avg AS (
+    SELECT
+        oi.order_id,
+        oi.order_item_id,
+        oi.product_id,
+        p.product_category_name,
+        oi.price,
+        ROUND(
+            AVG(oi.price) OVER (
+                PARTITION BY p.product_category_name
+            ),
+            2
+        ) AS category_avg
+    FROM raw.order_items oi
+    JOIN raw.products p
+        ON oi.product_id = p.product_id
+)
+SELECT *
+FROM item_category_avg
+WHERE price > category_avg
+ORDER BY product_category_name, price DESC;
 
