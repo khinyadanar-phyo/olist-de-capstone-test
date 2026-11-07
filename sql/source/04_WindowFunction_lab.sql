@@ -1,14 +1,21 @@
 ------------- lab question -------------
 
 -- Q1 . for each seller state, find the 3 sellers who earned the most revenue.
-
+SET search_path TO raw;
 select * from sellers;
 
 select * from order_items; -- price + freight value
 
--- rank inside each state, highest revenue first, with rank()
+-- Q1. rank inside each state, highest revenue first, with rank()
 
 -- ties share a rank, so a state can show more than 3 sellers
+
+with total_revenue as (select s.seller_id, s.seller_state, sum(oi.price+oi.freight_value) revenue 
+from sellers s join order_items oi on s.seller_id=oi.seller_id 
+group by s.seller_id, s.seller_state
+order by revenue )
+select * rank()over(partiton by seller_state order by revenue desc ) SET search_path TO raw;
+--------------
 
 with total_revenue as (
     select s.seller_id, s.seller_state, sum(oi.price + oi.freight_value) as revenue
