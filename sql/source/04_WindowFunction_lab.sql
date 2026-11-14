@@ -10,13 +10,6 @@ select * from order_items; -- price + freight value
 
 -- ties share a rank, so a state can show more than 3 sellers
 
-with total_revenue as (select s.seller_id, s.seller_state, sum(oi.price+oi.freight_value) revenue 
-from sellers s join order_items oi on s.seller_id=oi.seller_id 
-group by s.seller_id, s.seller_state
-order by revenue )
-select * rank()over(partiton by seller_state order by revenue desc ) SET search_path TO raw;
---------------
-
 with total_revenue as (
     select s.seller_id, s.seller_state, sum(oi.price + oi.freight_value) as revenue
     from sellers s
@@ -31,7 +24,11 @@ from total_revenue;
 -----------------------
 
 --Q2. for every customer, show the date of their first order and how many orders they placed in total.
+select * from customers
+select * from orders
 
+
+----------
 with customer_orders as (
     select
         c.customer_unique_id,

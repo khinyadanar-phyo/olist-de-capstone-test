@@ -16,4 +16,16 @@ def main():
         log.exception("ETL failed"); sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    main() 
+
+# Testing the Db connection 
+# import os
+# from dotenv import load_dotenv
+
+# load_dotenv()        # read .env into environment variables
+
+# DB_USER = os.getenv("DB_USER", "postgres")
+# DB_PASSWORD = os.getenv("DB_PASSWORD")   # None if missing
+# #confirm yet that your .env variables were loaded correctly.
+# print("DB_USER:", DB_USER)
+# print("DB_PASSWORD loaded:", DB_PASSWORD is not None)
