@@ -1,12 +1,12 @@
 ------------- lab question -------------
 
 -- Q1 . for each seller state, find the 3 sellers who earned the most revenue.
-
+SET search_path TO raw;
 select * from sellers;
 
 select * from order_items; -- price + freight value
 
--- rank inside each state, highest revenue first, with rank()
+-- Q1. rank inside each state, highest revenue first, with rank()
 
 -- ties share a rank, so a state can show more than 3 sellers
 
@@ -24,7 +24,11 @@ from total_revenue;
 -----------------------
 
 --Q2. for every customer, show the date of their first order and how many orders they placed in total.
+select * from customers
+select * from orders
 
+
+----------
 with customer_orders as (
     select
         c.customer_unique_id,
